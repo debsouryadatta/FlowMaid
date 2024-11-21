@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Save } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import ThemeToggle from '@/components/theme-toggle';
+import { SavedCodesSheet } from './saved-codes-sheet';
+import { LLMSettingsDialog } from '@/components/llm-settings-dialog';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -41,6 +43,18 @@ export default function Navbar() {
             >
               Contact
             </Link>
+            <LLMSettingsDialog />
+            <SavedCodesSheet 
+              triggerElement={
+                <Button
+                  variant="ghost"
+                  className="text-foreground/70 transition-colors hover:text-foreground flex items-center gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  Saved Codes
+                </Button>
+              }
+            />
             <ThemeToggle />
           </div>
 
@@ -87,6 +101,18 @@ export default function Navbar() {
               >
                 Contact
               </Link>
+              <LLMSettingsDialog />
+              <SavedCodesSheet 
+                triggerElement={
+                  <Button
+                    variant="ghost"
+                    className="text-foreground/70 transition-colors hover:text-foreground flex items-center gap-2 justify-start"
+                  >
+                    <Save className="h-4 w-4" />
+                    Saved Codes
+                  </Button>
+                }
+              />
               <div className="pt-2">
                 <ThemeToggle />
               </div>

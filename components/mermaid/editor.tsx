@@ -1,23 +1,29 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Editor } from '@monaco-editor/react';
 import { AlertCircle, Book, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { SaveCodeDialog } from '@/components/save-code-dialog';
 
 interface MermaidEditorProps {
-  code: string; // Add code prop
+  code: string; 
   onChange: (value: string) => void;
   error?: string;
 }
 
 export function MermaidEditor({ code, onChange, error }: MermaidEditorProps) {
   const [mounted, setMounted] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    console.log('MermaidEditor received code:', code);
+  }, [code]);
 
   const handleCopy = async () => {
     try {
@@ -28,6 +34,7 @@ export function MermaidEditor({ code, onChange, error }: MermaidEditorProps) {
   };
 
   const handleEditorChange = (value: string | undefined) => {
+    console.log('MermaidEditor onChange:', value);
     if (value !== undefined) {
       // Clean up any potential formatting issues
       const cleanValue = value
@@ -43,6 +50,7 @@ export function MermaidEditor({ code, onChange, error }: MermaidEditorProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
+          <SaveCodeDialog code={code} />
           <Button
             variant="outline"
             size="sm"

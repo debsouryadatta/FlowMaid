@@ -1,135 +1,198 @@
 import OpenAI from 'openai';
 
-export const openai = new OpenAI({
-  apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
-  baseURL: process.env.NEXT_PUBLIC_GROQ_BASE_URL,
-  dangerouslyAllowBrowser: true,
-});
+const getOpenAIConfig = () => {
+  if (typeof window === 'undefined') return null;
 
-export const generateMermaidCode = async (prompt: string, style: string = 'default'): Promise<string> => {
-  const systemPrompt = `You are an expert at creating clear, visually appealing, and highly detailed Mermaid.js diagrams. Follow these enhanced principles:
+  const settings = JSON.parse(localStorage.getItem('llm-settings') || '{}');
+  const { selectedModel, apiKey, baseUrl } = settings;
 
-1. Visual Design & Diversity:
-   - Create detailed yet clean diagrams using multiple Mermaid formats (flowchart, sequence, class, ER, pie, mindmap, gantt, state)
-   - Choose the most appropriate diagram type for the concept being explained
-   - Break down complex concepts into multiple complementary diagrams of different types
-   - Use a modern, sleek design approach with consistent styling
-   - Implement thoughtful color schemes using pastel or professional tones
-   - Maintain generous whitespace for readability
+  // If no model is selected, use default Groq settings
+  if (!selectedModel) {
+    return {
+      apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
+      baseURL: process.env.NEXT_PUBLIC_GROQ_BASE_URL,
+      model: process.env.NEXT_PUBLIC_GROQ_LLM_MODEL,
+    };
+  }
 
-2. Simplified Connection Strategy:
-   - Avoid overwhelming connections between nodes
-   - Use hierarchical structures and subgraphs to show relationships
-   - Break complex relationships into separate, focused diagrams
-   - Utilize alternative visualization methods like:
-     * Nested structures instead of many connections
-     * Sequential steps instead of complex arrows
-     * Grouping related items in clusters
-     * Using different diagram types to show relationships naturally
+  // For Groq free trial model
+  if (selectedModel === 'llama-3.1-70b-versatile') {
+    return {
+      apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
+      baseURL: process.env.NEXT_PUBLIC_GROQ_BASE_URL,
+      model: 'llama-3.1-70b-versatile',
+    };
+  }
 
-3. Detailed Content Organization:
-   - Create comprehensive, in-depth diagrams that thoroughly explain each concept
-   - Break down complex processes into multiple interconnected diagrams
-   - Provide extensive detail for each step or component while maintaining clarity
-   - Include detailed notes and descriptions using markdown syntax
-   - Create separate sub-diagrams for each major step or component
-   - Use clear, descriptive labels with proper context
-   - Add helpful annotations and explanations
-   - Implement proper syntax to avoid preview errors
-   - For each major concept or process:
-     * Start with a high-level overview diagram
-     * Follow with detailed breakdowns of each component
-     * Include specific implementation details
-     * Add edge cases and special scenarios
-     * Provide alternative paths or options
-   - Use appropriate diagram types for specific scenarios:
-     * Flowcharts: Create detailed step-by-step processes with sub-processes
-     * Sequence: Show comprehensive interaction flows with detailed messages
-     * Class: Display complete system architecture with all relationships
-     * ER: Create detailed data models with all attributes and relationships
-     * Pie: Show distribution with detailed breakdowns
-     * Mindmap: Create extensive concept hierarchies with sub-concepts
-     * Gantt: Display detailed project timelines with dependencies
-     * State: Show complete state machines with all transitions
-     * Block: Display detailed system components with interactions
+  // For OpenAI models
+  if (selectedModel.startsWith('gpt-')) {
+    return {
+      apiKey: apiKey,
+      baseURL: 'https://api.openai.com/v1',
+      model: selectedModel,
+    };
+  }
 
-4. Enhanced Styling Rules:
-   - Use consistent node shapes within each diagram
-   - Implement subtle gradients and modern styling
-   - Use rounded edges for a contemporary look
-   - Maintain proper spacing between elements
-   - Limit color palette to 4-5 complementary colors
-   - Use line styles thoughtfully (solid, dotted, thick, thin)
+  // For Gemini models
+  if (selectedModel === 'gemini-pro') {
+    return {
+      apiKey: apiKey,
+      baseURL: baseUrl || 'https://generativelanguage.googleapis.com/v1',
+      model: 'gemini-pro',
+    };
+  }
 
-5. Error Prevention:
-   - Follow strict Mermaid.js syntax
-   - Validate diagram structure before returning
-   - Use proper escape characters for special symbols
-   - Keep node IDs simple and valid
-   - Ensure proper closing of all blocks and subgraphs
-   - For chemical formulas and special characters:
-     * Don't use first brackets () inside the code instead use other syntax suitable for mermaid for that purpose
-     * Escape special characters: \<, \>, \{, \}, \|
-     * Avoid parentheses in node labels
-   - Follow these syntax rules:
-     * Use proper arrow syntax: -->, ==>
-     * Use valid subgraph syntax
-     * Use quotes for text with special chars
-     * Keep node IDs alphanumeric
+  // For custom models
+  return {
+    apiKey: apiKey,
+    baseURL: baseUrl,
+    model: selectedModel,
+  };
+};
 
-6. Comprehensive Documentation Approach:
-   - Create multiple diagrams for complex topics
-   - Start with overview diagrams
-   - Follow with detailed breakdowns
-   - Include specific implementation details
-   - Document edge cases and alternatives
-   - Add detailed annotations and notes
-   - Provide context for each component
-   - Use subgraphs to organize related concepts
-   - Include legends or keys where helpful
-   - Add timestamps or version information if relevant
+export function createOpenAIClient() {
+  const config = getOpenAIConfig();
+  if (!config) {
+    throw new Error('Failed to load LLM configuration');
+  }
 
-Based on the style parameter:
-- default: Professional and clean with balanced detail
-- minimal: Essential elements with modern styling
-- detailed: Comprehensive visualization with multiple diagram types
-- technical: Formal documentation style with precise details
+  let baseURL = config.baseURL;
+  let apiKey = config.apiKey;
+  let model = config.model;
 
-Always prioritize clarity and readability over complexity. When explaining complex concepts:
-1. Start with a high-level overview diagram
-2. Break down each major component into its own detailed sub-diagram
-3. Include comprehensive notes and explanations
-4. Show alternative paths and edge cases
-5. Provide implementation details where relevant
-6. Use multiple diagram types to explain different aspects
-7. Ensure each diagram adds value to the overall explanation
+  // Handle different providers
+  switch (true) {
+    case model.startsWith('gpt'):
+      // Default OpenAI configuration
+      break;
+    case model === 'openai-compatible':
+      if (!config.baseURL) {
+        throw new Error('Base URL is required for OpenAI-compatible APIs');
+      }
+      baseURL = config.baseURL;
+      break;
+    case model === 'llama-3.1-70b-versatile':
+      baseURL = process.env.NEXT_PUBLIC_GROQ_BASE_URL || 'https://api.groq.com/openai/v1';
+      apiKey = process.env.NEXT_PUBLIC_GROQ_API_KEY;
+      break;
+    default:
+      throw new Error('Unsupported model selected');
+  }
 
-Remember to generate extensive, detailed code while maintaining visual clarity and organization. Each diagram should be part of a larger, comprehensive explanation of the topic.`;
+  return new OpenAI({
+    apiKey: apiKey || '',
+    baseURL,
+  });
+}
 
-  const userPrompt = `Create a clear and visually appealing diagram that explains: ${prompt}. Use the ${style} style.`;
-
-  const messages = [
-    { role: 'system', content: systemPrompt },
-    { role: 'user', content: userPrompt }
-  ];
-
+export async function generateMermaidCode(prompt: string, settings: any): Promise<string> {
   try {
-    const response = await openai.chat.completions.create({
-      model: process.env.NEXT_PUBLIC_GROQ_LLM_MODEL as string,
-      // @ts-ignore
-      messages,
-      temperature: 0.7,
-      max_tokens: 2500,
-      // top_p: 1,
-      // frequency_penalty: 0.3,
-      // presence_penalty: 0.3,
+    console.log('Starting diagram generation...');
+    let baseURL = 'https://api.openai.com/v1';
+    let apiKey = settings.apiKey;
+    let modelName = settings.selectedModel;
+
+    if (!settings?.selectedModel) {
+      throw new Error('Please select a language model in settings before generating.');
+    }
+
+    console.log('Using model:', modelName);
+
+    // Handle different providers
+    switch (true) {
+      case modelName.startsWith('gpt'):
+        if (!apiKey) {
+          throw new Error('OpenAI API key is required');
+        }
+        break;
+      case modelName === 'openai-compatible':
+        if (!settings.baseUrl) {
+          throw new Error('Base URL is required for OpenAI-compatible APIs');
+        }
+        if (!apiKey) {
+          throw new Error('API key is required for OpenAI-compatible APIs');
+        }
+        baseURL = settings.baseUrl;
+        modelName = settings.modelName || 'gpt-3.5-turbo';
+        break;
+      case modelName === 'llama-3.1-70b-versatile':
+        baseURL = 'https://api.groq.com/openai/v1';
+        apiKey = process.env.NEXT_PUBLIC_GROQ_API_KEY;
+        if (!apiKey) {
+          throw new Error('GROQ API key not found in environment variables');
+        }
+        console.log('Using GROQ API with base URL:', baseURL);
+        break;
+      default:
+        throw new Error('Unsupported model selected');
+    }
+
+    console.log('Initializing OpenAI client...');
+    const openai = new OpenAI({
+      apiKey,
+      baseURL,
+      dangerouslyAllowBrowser: true,
+      timeout: 60000, // 60 second timeout
     });
 
-    const mermaidCode = response.choices[0].message.content?.trim() || '';
-    console.log("Mermaid Code:", mermaidCode);
+    const systemPrompt = `Create a Mermaid.js diagram based on the user's request. Follow these guidelines:
+
+1. Use appropriate diagram type (flowchart TD/LR, sequence, class, etc.)
+2. Keep the diagram clear and readable
+3. Use meaningful node IDs and labels
+4. Follow latest Mermaid.js syntax strictly
+5. Avoid overly complex structures
+6. Include only essential elements
+7. Use proper arrow types and connections
+
+Important: Only output the Mermaid.js code without any explanations or additional text.
+Example format:
+graph TD
+    A[Start] --> B{Decision}
+    B -->|Yes| C[Action]
+    B -->|No| D[Other Action]`;
+
+    console.log('Making API request...');
+    const response = await openai.chat.completions.create({
+      model: modelName,
+      messages: [
+        {
+          role: 'system',
+          content: systemPrompt,
+        },
+        {
+          role: 'user',
+          content: `Create a Mermaid.js diagram for: ${prompt}. Only output the diagram code, no explanations.`,
+        },
+      ],
+      temperature: 0.3, // Lower temperature for more consistent output
+      max_tokens: 1000, // Reduced token limit for faster response
+      top_p: 0.8,
+      frequency_penalty: 0,
+      presence_penalty: 0,
+    });
+
+    console.log('Processing API response...');
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error('No content generated');
+    }
+
+    // Clean up the response to extract only the Mermaid code
+    const mermaidCode = content
+      .replace(/```mermaid/g, '')
+      .replace(/```/g, '')
+      .trim();
+
+    console.log('Successfully generated diagram code');
     return mermaidCode;
-  } catch (error) {
-    console.error('Error generating Mermaid code:', error);
-    throw new Error('Failed to generate diagram code');
+  } catch (error: any) {
+    console.error('Error details:', {
+      message: error.message,
+      status: error.status,
+      response: error.response,
+      stack: error.stack,
+    });
+    throw error;
   }
-};
+}
