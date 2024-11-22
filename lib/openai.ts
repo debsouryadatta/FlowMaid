@@ -1,89 +1,5 @@
 import OpenAI from 'openai';
-
-const getOpenAIConfig = () => {
-  if (typeof window === 'undefined') return null;
-
-  const settings = JSON.parse(localStorage.getItem('llm-settings') || '{}');
-  const { selectedModel, apiKey, baseUrl } = settings;
-
-  // If no model is selected, use default Groq settings
-  if (!selectedModel) {
-    return {
-      apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
-      baseURL: process.env.NEXT_PUBLIC_GROQ_BASE_URL,
-      model: process.env.NEXT_PUBLIC_GROQ_LLM_MODEL,
-    };
-  }
-
-  // For Groq free trial model
-  if (selectedModel === 'llama-3.1-70b-versatile') {
-    return {
-      apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
-      baseURL: process.env.NEXT_PUBLIC_GROQ_BASE_URL,
-      model: 'llama-3.1-70b-versatile',
-    };
-  }
-
-  // For OpenAI models
-  if (selectedModel.startsWith('gpt-')) {
-    return {
-      apiKey: apiKey,
-      baseURL: 'https://api.openai.com/v1',
-      model: selectedModel,
-    };
-  }
-
-  // For Gemini models
-  if (selectedModel === 'gemini-pro') {
-    return {
-      apiKey: apiKey,
-      baseURL: baseUrl || 'https://generativelanguage.googleapis.com/v1',
-      model: 'gemini-pro',
-    };
-  }
-
-  // For custom models
-  return {
-    apiKey: apiKey,
-    baseURL: baseUrl,
-    model: selectedModel,
-  };
-};
-
-export function createOpenAIClient() {
-  const config = getOpenAIConfig();
-  if (!config) {
-    throw new Error('Failed to load LLM configuration');
-  }
-
-  let baseURL = config.baseURL;
-  let apiKey = config.apiKey;
-  let model = config.model;
-
-  // Handle different providers
-  switch (true) {
-    case model.startsWith('gpt'):
-      // Default OpenAI configuration
-      break;
-    case model === 'openai-compatible':
-      if (!config.baseURL) {
-        throw new Error('Base URL is required for OpenAI-compatible APIs');
-      }
-      baseURL = config.baseURL;
-      break;
-    case model === 'llama-3.1-70b-versatile':
-      baseURL = process.env.NEXT_PUBLIC_GROQ_BASE_URL || 'https://api.groq.com/openai/v1';
-      apiKey = process.env.NEXT_PUBLIC_GROQ_API_KEY;
-      break;
-    default:
-      throw new Error('Unsupported model selected');
-  }
-
-  return new OpenAI({
-    apiKey: apiKey || '',
-    baseURL,
-  });
-}
+import { SYSTEM_PROMPT } from './prompt';
 
 export async function generateMermaidCode(prompt: string, settings: any): Promise<string> {
   try {
@@ -135,22 +51,7 @@ export async function generateMermaidCode(prompt: string, settings: any): Promis
       timeout: 60000, // 60 second timeout
     });
 
-    const systemPrompt = `Create a Mermaid.js diagram based on the user's request. Follow these guidelines:
-
-1. Use appropriate diagram type (flowchart TD/LR, sequence, class, etc.)
-2. Keep the diagram clear and readable
-3. Use meaningful node IDs and labels
-4. Follow latest Mermaid.js syntax strictly
-5. Avoid overly complex structures
-6. Include only essential elements
-7. Use proper arrow types and connections
-
-Important: Only output the Mermaid.js code without any explanations or additional text.
-Example format:
-graph TD
-    A[Start] --> B{Decision}
-    B -->|Yes| C[Action]
-    B -->|No| D[Other Action]`;
+    const systemPrompt = SYSTEM_PROMPT;
 
     console.log('Making API request...');
     const response = await openai.chat.completions.create({

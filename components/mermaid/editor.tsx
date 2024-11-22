@@ -1,21 +1,18 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Editor } from '@monaco-editor/react';
 import { AlertCircle, Book, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SaveCodeDialog } from '@/components/save-code-dialog';
+import { useCode } from '@/context/code-context';
 
-interface MermaidEditorProps {
-  code: string; 
-  onChange: (value: string) => void;
-  error?: string;
-}
 
-export function MermaidEditor({ code, onChange, error }: MermaidEditorProps) {
+export function MermaidEditor() {
+  const { code, setCode, codeError, setCodeError } = useCode();
+
   const [mounted, setMounted] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -40,7 +37,7 @@ export function MermaidEditor({ code, onChange, error }: MermaidEditorProps) {
       const cleanValue = value
         .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width spaces
         .replace(/\r\n/g, '\n'); // Normalize line endings
-      onChange(cleanValue);
+      setCode(cleanValue);
     }
   };
 
@@ -72,10 +69,10 @@ export function MermaidEditor({ code, onChange, error }: MermaidEditorProps) {
         </div>
       </div>
 
-      {error && (
+      {codeError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{codeError}</AlertDescription>
         </Alert>
       )}
 

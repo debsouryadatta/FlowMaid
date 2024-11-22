@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import mermaid from 'mermaid';
+import debounce from 'lodash/debounce';
 import { Loader2, Maximize2, Minimize2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,13 +12,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useCode } from '@/context/code-context';
 
-interface MermaidPreviewProps {
-  code: string;
-  onError: (error: string) => void;
-}
 
-export function MermaidPreview({ code, onError }: MermaidPreviewProps) {
+export function MermaidPreview() {
+  const { code, setCode, codeError, setCodeError } = useCode();
   const [svg, setSvg] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -47,8 +46,8 @@ export function MermaidPreview({ code, onError }: MermaidPreviewProps) {
     });
   }, []);
 
-  useEffect(() => {
-    const renderDiagram = async () => {
+  const debouncedRenderDiagram = useCallback(
+    debounce(async (code: string) => {
       if (!code.trim()) return;
       
       try {
@@ -61,34 +60,23 @@ export function MermaidPreview({ code, onError }: MermaidPreviewProps) {
         const id = `mermaid-${Date.now()}`;
         const { svg } = await mermaid.render(id, cleanCode);
         setSvg(svg);
-        onError('');
+        setCodeError('');
       } catch (error) {
         console.error('Mermaid render error:', error);
-        onError(error instanceof Error ? error.message : 'Failed to render diagram');
+        setCodeError(error instanceof Error ? error.message : 'Failed to render diagram');
       } finally {
         setLoading(false);
       }
+    }, 500),
+    []
+  );
+
+  useEffect(() => {
+    debouncedRenderDiagram(code);
+    return () => {
+      debouncedRenderDiagram.cancel();
     };
-
-    renderDiagram();
-  }, [code, onError]);
-
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    const scaleFactor = e.deltaY > 0 ? 0.9 : 1.1;
-    const newScale = Math.min(Math.max(transform.scale * scaleFactor, 0.1), 5);
-    
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    const newX = transform.x - ((x - transform.x) * (scaleFactor - 1));
-    const newY = transform.y - ((y - transform.y) * (scaleFactor - 1));
-    
-    setTransform({ scale: newScale, x: newX, y: newY });
-  };
+  }, [code, debouncedRenderDiagram]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
@@ -96,19 +84,15 @@ export function MermaidPreview({ code, onError }: MermaidPreviewProps) {
     setDragStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isDragging) return;
     const newX = e.clientX - dragStart.x;
     const newY = e.clientY - dragStart.y;
-    setTransform({ ...transform, x: newX, y: newY });
-  };
+    setTransform(prev => ({ ...prev, x: newX, y: newY }));
+  }, [isDragging, dragStart]);
 
   const handleMouseUp = () => {
     setIsDragging(false);
-  };
-
-  const handleDoubleClick = () => {
-    setTransform({ scale: 1, x: 0, y: 0 });
   };
 
   const handleZoomIn = () => {

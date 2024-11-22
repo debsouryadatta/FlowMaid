@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { SaveIcon } from 'lucide-react';
-import { useCode } from '@/components/Providers';
+import { useCode } from '@/context/code-context';
 
 interface SaveCodeDialogProps {
   code: string;

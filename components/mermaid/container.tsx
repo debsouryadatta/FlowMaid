@@ -1,68 +1,43 @@
 'use client';
 
-import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MermaidEditor } from './editor';
 import { MermaidPreview } from './preview';
 import { PromptInput } from '../prompt-input';
-import { useCode } from '@/components/Providers';
 
 export function MermaidContainer() {
-  const { code, setCode } = useCode();
-  const [error, setError] = useState('');
-
-  const extractMermaidCode = (response: string): string => {
-    console.log('Extracting Mermaid code from:', response);
-    // Replace parentheses with quotes in chemical formulas and other content
-    response = response.replace(/\(([^)]+)\)/g, "'$1'");
-    
-    // Try to find code between ```mermaid blocks
-    const mermaidMatch = response.match(/```mermaid\n([\s\S]*?)\n```/);
-    if (mermaidMatch) {
-      console.log('Found Mermaid code block:', mermaidMatch[1].trim());
-      return mermaidMatch[1].trim();
-    }
-
-    // If no mermaid blocks found, try to find any code blocks
-    const codeMatch = response.match(/```\n([\s\S]*?)\n```/);
-    if (codeMatch) {
-      console.log('Found generic code block:', codeMatch[1].trim());
-      return codeMatch[1].trim();
-    }
-
-    // If no code blocks found, return the entire response
-    // after removing any markdown-style comments
-    const cleanedCode = response.replace(/<!--[\s\S]*?-->/g, '').trim();
-    console.log('Using cleaned response:', cleanedCode);
-    return cleanedCode;
-  };
-
-  const handleCodeGenerated = (codes: string[]) => {
-    console.log('Handling generated codes:', codes);
-    if (codes.length > 0) {
-      const extractedCode = extractMermaidCode(codes[0]);
-      console.log('Setting extracted code:', extractedCode);
-      setCode(extractedCode);
-      setError('');
-    }
-  };
-
   return (
-    <div className="space-y-8">
-      <PromptInput onCodeGenerated={handleCodeGenerated} onError={setError} />
+    <div className="relative space-y-8 rounded-xl bg-black/20 dark:bg-black/20 p-6 backdrop-blur-sm">
+      <div className="absolute inset-0 bg-gradient-to-b from-gray-100/30 to-gray-200/30 dark:from-indigo-950/20 dark:to-purple-950/20 rounded-xl" />
+      
+      <div className="relative">
+        <PromptInput />
+      </div>
 
-      <Tabs defaultValue="editor" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="editor">Editor</TabsTrigger>
-          <TabsTrigger value="preview">Preview</TabsTrigger>
-        </TabsList>
-        <TabsContent value="editor">
-          <MermaidEditor code={code} onChange={setCode} error={error} />
-        </TabsContent>
-        <TabsContent value="preview">
-          <MermaidPreview code={code} onError={setError} />
-        </TabsContent>
-      </Tabs>
+      <div className="relative">
+        <Tabs defaultValue="editor" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 bg-gray-100/30 dark:bg-black/20 p-1">
+            <TabsTrigger 
+              value="editor"
+              className="data-[state=active]:bg-white/50 dark:data-[state=active]:bg-indigo-950/50 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white"
+            >
+              Editor
+            </TabsTrigger>
+            <TabsTrigger 
+              value="preview"
+              className="data-[state=active]:bg-white/50 dark:data-[state=active]:bg-indigo-950/50 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white"
+            >
+              Preview
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="editor" className="rounded-lg bg-white/40 dark:bg-black/40 p-4 mt-2">
+            <MermaidEditor />
+          </TabsContent>
+          <TabsContent value="preview" className="rounded-lg bg-white/40 dark:bg-black/40 p-4 mt-2">
+            <MermaidPreview />
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }

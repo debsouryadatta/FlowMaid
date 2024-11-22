@@ -22,7 +22,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Settings2 } from 'lucide-react';
-import { useLLM } from '@/components/Providers';
+import { useLLM } from '@/context/llm-context';
 import { cn } from '@/lib/utils';
 
 export function LLMSettingsDialog() {

@@ -13,7 +13,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SaveIcon, Trash2, Code2, GripVertical } from 'lucide-react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import { useCode } from '@/components/Providers';
+import { useCode } from '@/context/code-context';
 import {
   DndContext,
   closestCenter,

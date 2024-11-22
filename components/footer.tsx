@@ -3,24 +3,33 @@ import Link from 'next/link';
 
 export default function Footer() {
   return (
-    <footer className="mt-auto border-t border-border bg-background">
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
+    <footer className="mt-auto border-t border-white/5 bg-black/80 backdrop-blur-lg">
+      <div className="container mx-auto px-4 py-12">
+        <div className="grid grid-cols-1 gap-12 md:grid-cols-4">
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Visual Generator</h3>
-            <p className="text-sm text-muted-foreground">
+            <div className="flex items-center space-x-2">
+              <div className="relative h-8 w-8">
+                <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600" />
+                <div className="absolute inset-0.5 rounded-lg bg-black" />
+                <div className="absolute inset-1 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600" />
+              </div>
+              <h3 className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-lg font-bold text-transparent">
+                FlowMaid
+              </h3>
+            </div>
+            <p className="text-sm text-white/60">
               Transform your ideas into beautiful visuals with our AI-powered
               generator.
             </p>
           </div>
 
           <div>
-            <h4 className="mb-4 font-semibold">Quick Links</h4>
-            <ul className="space-y-2 text-sm">
+            <h4 className="mb-4 font-medium text-white/80">Quick Links</h4>
+            <ul className="space-y-3 text-sm">
               <li>
                 <Link
                   href="/"
-                  className="text-muted-foreground hover:text-foreground"
+                  className="text-white/60 transition-colors hover:text-white"
                 >
                   Home
                 </Link>
@@ -28,7 +37,7 @@ export default function Footer() {
               <li>
                 <Link
                   href="/about"
-                  className="text-muted-foreground hover:text-foreground"
+                  className="text-white/60 transition-colors hover:text-white"
                 >
                   About
                 </Link>
@@ -36,7 +45,7 @@ export default function Footer() {
               <li>
                 <Link
                   href="/contact"
-                  className="text-muted-foreground hover:text-foreground"
+                  className="text-white/60 transition-colors hover:text-white"
                 >
                   Contact
                 </Link>
@@ -45,12 +54,12 @@ export default function Footer() {
           </div>
 
           <div>
-            <h4 className="mb-4 font-semibold">Legal</h4>
-            <ul className="space-y-2 text-sm">
+            <h4 className="mb-4 font-medium text-white/80">Legal</h4>
+            <ul className="space-y-3 text-sm">
               <li>
                 <Link
                   href="/privacy"
-                  className="text-muted-foreground hover:text-foreground"
+                  className="text-white/60 transition-colors hover:text-white"
                 >
                   Privacy Policy
                 </Link>
@@ -58,7 +67,7 @@ export default function Footer() {
               <li>
                 <Link
                   href="/terms"
-                  className="text-muted-foreground hover:text-foreground"
+                  className="text-white/60 transition-colors hover:text-white"
                 >
                   Terms of Service
                 </Link>
@@ -67,13 +76,13 @@ export default function Footer() {
           </div>
 
           <div>
-            <h4 className="mb-4 font-semibold">Connect</h4>
+            <h4 className="mb-4 font-medium text-white/80">Connect</h4>
             <div className="flex space-x-4">
               <a
                 href="https://github.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-foreground"
+                className="rounded-lg bg-white/5 p-2 text-white/60 transition-all hover:bg-white/10 hover:text-white"
               >
                 <Github className="h-5 w-5" />
               </a>
@@ -81,7 +90,7 @@ export default function Footer() {
                 href="https://twitter.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-foreground"
+                className="rounded-lg bg-white/5 p-2 text-white/60 transition-all hover:bg-white/10 hover:text-white"
               >
                 <Twitter className="h-5 w-5" />
               </a>
@@ -89,7 +98,7 @@ export default function Footer() {
                 href="https://linkedin.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-foreground"
+                className="rounded-lg bg-white/5 p-2 text-white/60 transition-all hover:bg-white/10 hover:text-white"
               >
                 <Linkedin className="h-5 w-5" />
               </a>
@@ -97,8 +106,8 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 border-t border-border pt-8 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} Visual Generator. All rights reserved.</p>
+        <div className="mt-12 border-t border-white/5 pt-8 text-center text-sm text-white/40">
+          <p>&copy; {new Date().getFullYear()} FlowMaid. All rights reserved.</p>
         </div>
       </div>
     </footer>
