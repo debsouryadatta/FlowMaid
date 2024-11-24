@@ -1,6 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
+import debounce from 'lodash/debounce';
 
 // Code Context
 interface SavedCode {
@@ -20,33 +21,68 @@ interface CodeContextType {
   setCodeError: (error: string | null) => void;
 }
 
+const defaultCode = `graph TD
+  A[Start] --> B{Is it working?}
+  B -->|Yes| C[Great!]
+  B -->|No| D[Debug]
+  D --> B`;
+
+// Utility functions
+const loadSavedCodes = (): SavedCode[] => {
+  if (typeof window === 'undefined') return [];
+  
+  try {
+    const savedCodesStr = localStorage.getItem('savedCodes');
+    if (savedCodesStr) {
+      return JSON.parse(savedCodesStr);
+    }
+  } catch (error) {
+    console.error('Error loading saved codes:', error);
+  }
+  return [];
+};
+
+const saveCodesToStorage = debounce((codes: SavedCode[]) => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem('savedCodes', JSON.stringify(codes));
+  } catch (error) {
+    console.error('Error saving codes:', error);
+  }
+}, 1000);
+
 const CodeContext = createContext<CodeContextType | undefined>(undefined);
 
 export function CodeContextProvider({ children }: { children: React.ReactNode }) {
-  const [code, setCode] = useState(`graph TD
-    A[Start] --> B{Is it working?}
-    B -->|Yes| C[Great!]
-    B -->|No| D[Debug]
-    D --> B`);
+  const [code, setCode] = useState(defaultCode);
   const [savedCodes, setSavedCodes] = useState<SavedCode[]>([]);
   const [codeError, setCodeError] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
 
+  // Initialize on client-side only
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const savedCodesStr = localStorage.getItem('savedCodes');
-    if (savedCodesStr) {
-      setSavedCodes(JSON.parse(savedCodesStr));
-    }
+    setIsClient(true);
+    setSavedCodes(loadSavedCodes());
+  }, []);
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      saveCodesToStorage.cancel();
+    };
   }, []);
 
   const saveCode = useCallback((name: string, codeToSave: string) => {
     setSavedCodes(prevCodes => {
-      const newCodes = [...prevCodes, { 
-        id: crypto.randomUUID(), 
-        name: name.trim(), 
-        code: codeToSave 
-      }];
-      localStorage.setItem('savedCodes', JSON.stringify(newCodes));
+      const newCodes = [
+        ...prevCodes,
+        { 
+          id: crypto.randomUUID(), 
+          name: name.trim(), 
+          code: codeToSave 
+        }
+      ];
+      saveCodesToStorage(newCodes);
       return newCodes;
     });
   }, []);
@@ -55,7 +91,7 @@ export function CodeContextProvider({ children }: { children: React.ReactNode })
     setSavedCodes(prevCodes => {
       const newCodes = [...prevCodes];
       newCodes.splice(index, 1);
-      localStorage.setItem('savedCodes', JSON.stringify(newCodes));
+      saveCodesToStorage(newCodes);
       return newCodes;
     });
   }, []);
@@ -65,7 +101,7 @@ export function CodeContextProvider({ children }: { children: React.ReactNode })
       const newCodes = [...prevCodes];
       const [movedItem] = newCodes.splice(oldIndex, 1);
       newCodes.splice(newIndex, 0, movedItem);
-      localStorage.setItem('savedCodes', JSON.stringify(newCodes));
+      saveCodesToStorage(newCodes);
       return newCodes;
     });
   }, []);
@@ -77,19 +113,19 @@ export function CodeContextProvider({ children }: { children: React.ReactNode })
     }
   }, []);
 
+  const value = useMemo(() => ({
+    code,
+    setCode: handleSetCode,
+    savedCodes,
+    saveCode,
+    deleteCode,
+    reorderCodes,
+    codeError,
+    setCodeError
+  }), [code, handleSetCode, savedCodes, saveCode, deleteCode, reorderCodes, codeError]);
+
   return (
-    <CodeContext.Provider 
-      value={{ 
-        code, 
-        setCode: handleSetCode, 
-        savedCodes, 
-        saveCode, 
-        deleteCode,
-        reorderCodes,
-        codeError,
-        setCodeError
-      }}
-    >
+    <CodeContext.Provider value={value}>
       {children}
     </CodeContext.Provider>
   );

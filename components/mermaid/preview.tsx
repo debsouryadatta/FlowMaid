@@ -14,9 +14,28 @@ import {
 } from "@/components/ui/dialog";
 import { useCode } from '@/context/code-context';
 
+// Initialize Mermaid once at module level
+mermaid.initialize({
+  startOnLoad: false, // Disable auto-load
+  theme: 'default',
+  securityLevel: 'loose',
+  flowchart: {
+    htmlLabels: true,
+    curve: 'basis',
+    useMaxWidth: true,
+  },
+  themeVariables: {
+    primaryColor: '#3b82f6',
+    primaryTextColor: '#ffffff',
+    primaryBorderColor: '#2563eb',
+    lineColor: '#64748b',
+    secondaryColor: '#6366f1',
+    tertiaryColor: '#8b5cf6',
+  },
+});
 
 export function MermaidPreview() {
-  const { code, setCode, codeError, setCodeError } = useCode();
+  const { code, codeError, setCodeError } = useCode();
   const [svg, setSvg] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -24,65 +43,55 @@ export function MermaidPreview() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const renderTimeoutRef = useRef<NodeJS.Timeout>();
 
+  const renderDiagram = useCallback(async (code: string) => {
+    if (!code.trim()) return;
+    
+    try {
+      setLoading(true);
+      const cleanCode = code
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&');
+        
+      const id = `mermaid-${Date.now()}`;
+      const { svg } = await mermaid.render(id, cleanCode);
+      setSvg(svg);
+      setCodeError('');
+    } catch (error) {
+      console.error('Mermaid render error:', error);
+      setCodeError(error instanceof Error ? error.message : 'Failed to render diagram');
+    } finally {
+      setLoading(false);
+    }
+  }, [setCodeError]);
+
+  // Use a more efficient debounce with cleanup
   useEffect(() => {
-    mermaid.initialize({
-      startOnLoad: true,
-      theme: 'default',
-      securityLevel: 'loose',
-      flowchart: {
-        htmlLabels: true,
-        curve: 'basis',
-        useMaxWidth: true,
-      },
-      themeVariables: {
-        primaryColor: '#3b82f6',
-        primaryTextColor: '#ffffff',
-        primaryBorderColor: '#2563eb',
-        lineColor: '#64748b',
-        secondaryColor: '#6366f1',
-        tertiaryColor: '#8b5cf6',
-      },
-    });
-  }, []);
+    // Clear any existing timeout
+    if (renderTimeoutRef.current) {
+      clearTimeout(renderTimeoutRef.current);
+    }
 
-  const debouncedRenderDiagram = useCallback(
-    debounce(async (code: string) => {
-      if (!code.trim()) return;
-      
-      try {
-        setLoading(true);
-        const cleanCode = code
-          .replace(/&lt;/g, '<')
-          .replace(/&gt;/g, '>')
-          .replace(/&amp;/g, '&');
-          
-        const id = `mermaid-${Date.now()}`;
-        const { svg } = await mermaid.render(id, cleanCode);
-        setSvg(svg);
-        setCodeError('');
-      } catch (error) {
-        console.error('Mermaid render error:', error);
-        setCodeError(error instanceof Error ? error.message : 'Failed to render diagram');
-      } finally {
-        setLoading(false);
-      }
-    }, 500),
-    []
-  );
+    // Set new timeout
+    renderTimeoutRef.current = setTimeout(() => {
+      renderDiagram(code);
+    }, 1000); // Increased debounce time to 1000ms
 
-  useEffect(() => {
-    debouncedRenderDiagram(code);
+    // Cleanup
     return () => {
-      debouncedRenderDiagram.cancel();
+      if (renderTimeoutRef.current) {
+        clearTimeout(renderTimeoutRef.current);
+      }
     };
-  }, [code, debouncedRenderDiagram]);
+  }, [code, renderDiagram]);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
     setIsDragging(true);
     setDragStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
-  };
+  }, [transform.x, transform.y]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isDragging) return;
@@ -91,58 +100,27 @@ export function MermaidPreview() {
     setTransform(prev => ({ ...prev, x: newX, y: newY }));
   }, [isDragging, dragStart]);
 
-  const handleMouseUp = () => {
+  const handleMouseUp = useCallback(() => {
     setIsDragging(false);
-  };
-
-  const handleZoomIn = () => {
-    setTransform(prev => ({
-      ...prev,
-      scale: Math.min(prev.scale + 0.1, 2.0) // Max zoom: 2x
-    }));
-  };
-
-  const handleZoomOut = () => {
-    setTransform(prev => ({
-      ...prev,
-      scale: Math.max(prev.scale - 0.1, 0.5) // Min zoom: 0.5x
-    }));
-  };
-
-  useEffect(() => {
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => window.removeEventListener('mouseup', handleMouseUp);
   }, []);
 
-  const PreviewContent = () => (
-    <div
-      ref={containerRef}
-      style={{
-        transform: `scale(${transform.scale}) translate(${transform.x}px, ${transform.y}px)`,
-        transformOrigin: 'center',
-        transition: 'transform 0.2s ease-out',
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}
-      className="cursor-grab active:cursor-grabbing"
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      dangerouslySetInnerHTML={{ __html: svg }}
-    />
-  );
+  const handleZoomIn = useCallback(() => {
+    setTransform(prev => ({
+      ...prev,
+      scale: Math.min(prev.scale + 0.1, 2.0)
+    }));
+  }, []);
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const handleZoomOut = useCallback(() => {
+    setTransform(prev => ({
+      ...prev,
+      scale: Math.max(prev.scale - 0.1, 0.5)
+    }));
+  }, []);
+
+  const handleReset = useCallback(() => {
+    setTransform({ scale: 1, x: 0, y: 0 });
+  }, []);
 
   return (
     <div className="relative w-full min-h-[400px] h-[calc(90vh-8rem)] overflow-hidden rounded-lg border bg-white">
@@ -176,7 +154,25 @@ export function MermaidPreview() {
       </div>
 
       <div className="w-full h-full p-4 overflow-hidden">
-        <PreviewContent />
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+            <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+          </div>
+        )}
+        
+        <div
+          ref={containerRef}
+          className="h-full w-full cursor-move"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          style={{
+            transform: `scale(${transform.scale}) translate(${transform.x}px, ${transform.y}px)`,
+            transformOrigin: '50% 50%',
+          }}
+          dangerouslySetInnerHTML={{ __html: svg }}
+        />
       </div>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
@@ -214,7 +210,19 @@ export function MermaidPreview() {
           </DialogHeader>
 
           <div className="flex-1 w-full h-[calc(90vh-8rem)] p-4 overflow-hidden bg-white">
-            <PreviewContent />
+            <div
+              ref={containerRef}
+              className="h-full w-full cursor-move"
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              style={{
+                transform: `scale(${transform.scale}) translate(${transform.x}px, ${transform.y}px)`,
+                transformOrigin: '50% 50%',
+              }}
+              dangerouslySetInnerHTML={{ __html: svg }}
+            />
           </div>
         </DialogContent>
       </Dialog>

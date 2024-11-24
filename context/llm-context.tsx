@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import debounce from 'lodash/debounce';
 
 // LLM Context
@@ -67,71 +67,83 @@ const defaultModels: LLMModel[] = [
   },
 ];
 
+// Utility functions outside component to avoid recreating them
+const defaultSettings = {
+  selectedModel: 'llama-3.1-70b-versatile',
+} as const;
+
+const loadSettings = (): LLMSettings => {
+  if (typeof window === 'undefined') return defaultSettings;
+  
+  try {
+    const saved = localStorage.getItem('llm-settings');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (defaultModels.some(m => m.id === parsed.selectedModel)) {
+        return parsed;
+      }
+    }
+  } catch (error) {
+    console.error('Error loading settings:', error);
+  }
+  return defaultSettings;
+};
+
+const saveSettings = debounce((settings: LLMSettings) => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem('llm-settings', JSON.stringify(settings));
+  } catch (error) {
+    console.error('Error saving settings:', error);
+  }
+}, 1000);
+
 const LLMContext = createContext<LLMContextType | undefined>(undefined);
 
 export function LLMContextProvider({ children }: { children: React.ReactNode }) {
-  // Load initial settings from localStorage synchronously
-  const getInitialSettings = useCallback(() => {
-    try {
-      const saved = localStorage.getItem('llm-settings');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // Validate the saved model still exists
-        if (defaultModels.some(m => m.id === parsed.selectedModel)) {
-          return parsed;
-        }
-      }
-    } catch (error) {
-      console.error('Error loading settings:', error);
-    }
-    return {
-      selectedModel: 'llama-3.1-70b-versatile',
-    };
-  }, []);
+  const [settings, setSettings] = useState<LLMSettings>(defaultSettings);
+  const [isClient, setIsClient] = useState(false);
 
-  const [settings, setSettings] = useState<LLMSettings>(getInitialSettings());
-
-  // Debounce the save operation
-  const debouncedSave = useCallback(
-    debounce((newSettings: LLMSettings) => {
-      try {
-        localStorage.setItem('llm-settings', JSON.stringify(newSettings));
-      } catch (error) {
-        console.error('Error saving settings:', error);
-      }
-    }, 1000),
-    []
-  );
-
-  // Save settings when they change
+  // One-time initialization on client-side
   useEffect(() => {
-    debouncedSave(settings);
-    return () => {
-      debouncedSave.cancel();
-    };
-  }, [settings, debouncedSave]);
+    setIsClient(true);
+    setSettings(loadSettings());
+  }, []);
 
   const updateSettings = useCallback((newSettings: Partial<LLMSettings>) => {
-    setSettings(prev => ({ ...prev, ...newSettings }));
+    setSettings(prev => {
+      const updated = { ...prev, ...newSettings };
+      saveSettings(updated);
+      return updated;
+    });
   }, []);
 
-  const isConfigured = () => {
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      saveSettings.cancel();
+    };
+  }, []);
+
+  const isConfigured = useCallback(() => {
     const model = defaultModels.find(m => m.id === settings.selectedModel);
     if (!model) return false;
-
+    
     if (model.requiresAuth && !settings.apiKey) return false;
     if (model.requiresBaseUrl && !settings.baseUrl) return false;
-
+    
     return true;
-  };
+  }, [settings]);
+
+  const value = useMemo(() => ({
+    availableModels: defaultModels,
+    settings,
+    updateSettings,
+    isConfigured,
+  }), [settings, updateSettings, isConfigured]);
 
   return (
-    <LLMContext.Provider value={{
-      availableModels: defaultModels,
-      settings,
-      updateSettings,
-      isConfigured,
-    }}>
+    <LLMContext.Provider value={value}>
       {children}
     </LLMContext.Provider>
   );
