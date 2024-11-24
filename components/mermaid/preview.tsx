@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import mermaid from 'mermaid';
 import debounce from 'lodash/debounce';
-import { Loader2, Maximize2, Minimize2, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Loader2, Maximize2, Minimize2, X, ZoomIn, ZoomOut, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -13,6 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useCode } from '@/context/code-context';
+import { useRouter } from 'next/navigation';
 
 // Initialize Mermaid once at module level
 mermaid.initialize({
@@ -36,6 +37,7 @@ mermaid.initialize({
 
 export function MermaidPreview() {
   const { code, codeError, setCodeError } = useCode();
+  const router = useRouter();
   const [svg, setSvg] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -142,6 +144,15 @@ export function MermaidPreview() {
           title="Zoom In"
         >
           <ZoomIn className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => router.push('/edit')}
+          className="h-8 w-8"
+          title="Edit"
+        >
+          <Pencil className="h-4 w-4" />
         </Button>
         <Button
           variant="outline"
